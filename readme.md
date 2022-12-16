@@ -25,7 +25,7 @@ The high-level workflow looks like this:
 
 ## Documentation
 
-[Click here for a step-by-step usage tutorial](readme_tutorial.txt), or [click here for more detailed documentation.](readme_docs.txt)
+[Click here for a step-by-step usage tutorial](readme_tutorial.md), or [click here for more detailed documentation.](readme_docs.md)
 
 
 ## License
