@@ -266,7 +266,7 @@ kmWrite32(0x80926010, 0x386002c0);  // profile 0x2c1 -> 0x2c0
 #endif
 ```
 
-...that's pretty ugly and verbose. Instead, you can use a header to add some more semantically-rich symbols, such as the provided example `game_versions_nsmbw.h`:
+...that's pretty ugly and verbose. Instead, you can use a header to add some more semantically-rich preprocessor symbols, such as the provided example `game_versions_nsmbw.h`:
 
 ```cpp
 #include "game_versions_nsmbw.h"
@@ -281,7 +281,7 @@ kmWrite32(0x80926010, 0x386002c0);  // profile 0x2c1 -> 0x2c0
 #endif
 ```
 
-`game_versions_nsmbw.h` adds symbols to make it easier to compare versions by revision (older vs newer) and region. If you're modding a different game, you can look at its implementation and create an equivalent header for it!
+`game_versions_nsmbw.h` adds preprocessor symbols to make it easier to compare versions by revision (older vs newer) and region. If you're modding a different game, you can look at how that header is implemented and create an equivalent one for your game!
 
 ### Even further improvements
 
