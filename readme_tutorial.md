@@ -242,7 +242,7 @@ Let's break down what that all means. First, in the JSON:
 
 Any C++ files that don't have a corresponding JSON will be built with the preprocessor flag `IS_GAME_VERSION_DYNAMIC`, which your code should interpret as "compile in a way compatible with all game versions, even if that requires dynamic version detection at runtime." **It's best practice to always check for this flag**, even if it's just to `#error`, so that if your JSON is ever accidentally deleted or renamed, you'll spot the mistake at build time instead of introducing a subtle bug that only affects a subset of game versions.
 
-If you add a JSON to indicate that you want split compilation, each copy will be compiled with an `IS_GAME_VERSION_{name}_COMPATIBLE` flag that indicates the name of the version (in this example: `IS_GAME_VERSION_P1_COMPATIBLE` and `IS_GAME_VERSION_K_COMPATIBLE`). You should interpret those as "compile in a way that works with the `{version}` version **and any others that are equivalent to it in context**, up to differences in addresses."
+If you add a JSON to indicate that you want split compilation, each copy will be compiled with an `IS_GAME_VERSION_{name}_COMPATIBLE` flag that indicates the name of the version (in this example: `IS_GAME_VERSION_P1_COMPATIBLE` and `IS_GAME_VERSION_K_COMPATIBLE`). You should interpret those as "compile in a way that works with the `{name}` version **and any others that are equivalent to it in context**, up to differences in addresses."
 
 ### Further improvements
 
