@@ -337,7 +337,7 @@ cflags = $
 rule cw
   command = $cc $cflags -c -o $out -MDfile $out.d $in
   depfile = $out.d
-  description = {ninja_escape(config.cw_exe.name)} -o $out_shortname $in_shortname
+  description = {ninja_escape(config.cw_exe.name)} -o $out_filename $in_filename
 """.strip('\n'))
 
     # Add "cw" edges for all .cpp -> .o files
@@ -346,8 +346,8 @@ rule cw
         for preproc_flag, o_file in tu.iter_builds(config):
             lines.append(f'build {ninja_escape(o_file)}: cw {ninja_escape(tu.cpp_file)}')
             lines.append(f'  cflags = $cflags -D{preproc_flag}')
-            lines.append(f'  out_shortname = {ninja_escape(o_file.relative_to(config.build_dir))}')
-            lines.append(f'  in_shortname = {ninja_escape(tu.cpp_file.relative_to(config.get_src_dir()))}')
+            lines.append(f'  out_filename = {ninja_escape(o_file.relative_to(config.build_dir))}')
+            lines.append(f'  in_filename = {ninja_escape(tu.cpp_file.relative_to(config.get_src_dir()))}')
             lines.append('')
 
     rule_command = f"'$kamek' $in -dynamic"
