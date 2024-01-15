@@ -298,6 +298,8 @@ def make_ninja_file(config: Config) -> str:
     use_addrmap = config.have_address_map_txt()
     use_externals = config.have_externals_txt()
 
+    quote = "'" if use_wine else '"'
+
     lines = []
     lines.append(f'# NOTE: "builddir" has special significance to Ninja (see the manual)')
     lines.append(f'builddir = {ninja_escape(config.build_dir)}')
@@ -308,7 +310,7 @@ def make_ninja_file(config: Config) -> str:
         cc = Path(__file__).parent / WINE_WRAPPER_SCRIPT_NAME
         lines.append(f"cc = {ninja_escape(sys.executable)} '{ninja_escape(cc)}' '$mwcceppc'")
     else:
-        lines.append(f'cc = $mwcceppc')
+        lines.append('cc = "$mwcceppc"')
     lines.append(f'kamek = {ninja_escape(config.kamek_exe)}')
     lines.append(f'kstdlib = {ninja_escape(config.kstdlib_dir)}')
     if use_addrmap:
@@ -322,8 +324,8 @@ def make_ninja_file(config: Config) -> str:
     lines.append(f"""
 cflags = $
   -I- $
-  -i '$kstdlib' $
-  -i '$includedir' $
+  -i {quote}$kstdlib{quote} $
+  -i {quote}$includedir{quote} $
   -Cpp_exceptions off $
   -enum int $
   -O4,s $
@@ -350,11 +352,11 @@ rule cw
             lines.append(f'  in_filename = {ninja_escape(tu.cpp_file.relative_to(config.get_src_dir()))}')
             lines.append('')
 
-    rule_command = f"'$kamek' $in -dynamic"
+    rule_command = f"{quote}$kamek{quote} $in -dynamic"
     if use_addrmap:
-        rule_command += " '-versions=$addrmap'"
+        rule_command += f" {quote}-versions=$addrmap{quote}"
     if use_externals:
-        rule_command += " '-externals=$externals'"
+        rule_command += f" {quote}-externals=$externals{quote}"
     rule_command += " -output-kamek=$out -select-version=$selectversion"
 
     lines.append(f"""
