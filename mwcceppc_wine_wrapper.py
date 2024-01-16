@@ -87,17 +87,22 @@ def fix_makefile(text: str, filename: str) -> str:
             # Blank line
             new_lines.append('')
 
-        elif line.count(': ') == 1 and line.endswith(' \\'):
-            # Header line ("whatever.o: whatever.cpp \")
+        elif line.count(': ') == 1:
             split_point = line.index(': ')
 
+            ends_with_slash = line.endswith(' \\')
+            if ends_with_slash:
+                line = line[:-2]
+            line = line.rstrip()
+
             o_file_win = makefile_unescape(line[:split_point])
-            cpp_file_win = makefile_unescape(line[split_point + 2 : -2])
+            cpp_file_win = makefile_unescape(line[split_point + 2 :])
 
             o_file_host = winepath_w2u(o_file_win).resolve()
             cpp_file_host = winepath_w2u(cpp_file_win).resolve()
 
-            new_lines.append(f'{makefile_escape(o_file_host)}: {makefile_escape(cpp_file_host)} \\')
+            SPACE_BACKSLASH = ' \\'
+            new_lines.append(f'{makefile_escape(o_file_host)}: {makefile_escape(cpp_file_host)}{SPACE_BACKSLASH if ends_with_slash else ""}')
 
         elif line.startswith('\t'):
             # Continuation of a rule ("\tsome_header.h \\")
@@ -106,6 +111,7 @@ def fix_makefile(text: str, filename: str) -> str:
             ends_with_slash = line.endswith(' \\')
             if ends_with_slash:
                 line = line[:-2]
+            line = line.rstrip()
 
             h_file_win = makefile_unescape(line)
             h_file_host = winepath_w2u(h_file_win).resolve()
