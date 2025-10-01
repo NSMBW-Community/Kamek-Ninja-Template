@@ -193,7 +193,7 @@ class TranslationUnit:
     # {"compile_for_this_version": {"for", "these", "build", "versions"}, ...}
     static_version_builds: Dict[str, Set[str]]
 
-    def __init__(self, cpp_file: Path, game_versions: List[str]) -> 'TranslationUnit':
+    def __init__(self, src_root_dir: Path, cpp_file: Path, game_versions: List[str]) -> 'TranslationUnit':
         """
         Create a TranslationUnit from a .cpp file path, including
         checking for the existence of a corresponding .json file
@@ -203,9 +203,17 @@ class TranslationUnit:
         self.use_static_version_builds = False
         self.static_version_builds = {}
 
-        json_file = cpp_file.with_suffix('.json')
-        if json_file.is_file():
-            self.read_config(json_file, game_versions)
+        inspect_path = cpp_file
+        while True:
+            json_path = inspect_path.with_suffix('.json')
+            if json_path.is_file():
+                self.read_config(json_path, game_versions)
+                return
+
+            if inspect_path == src_root_dir or inspect_path == inspect_path.parent:
+                break
+            else:
+                inspect_path = inspect_path.parent
 
     def read_config(self, path: Path, game_versions: List[str]) -> None:
         """
@@ -294,7 +302,7 @@ def make_ninja_file(config: Config) -> str:
     # Find all TUs, and read any configs
     tus = []
     for fp in sorted(config.get_src_dir().glob('**/*.cpp')):
-        tus.append(TranslationUnit(fp, config.get_version_names_list()))
+        tus.append(TranslationUnit(config.get_src_dir(), fp, config.get_version_names_list()))
 
     use_wine = (sys.platform != 'win32')
     use_addrmap = config.have_address_map_txt()
