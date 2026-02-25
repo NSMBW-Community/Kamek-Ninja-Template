@@ -22,7 +22,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import argparse
 from pathlib import Path
 import sys
 import subprocess
@@ -157,16 +156,16 @@ def main(argv=None):
             if prev_arg in ARGS_INDICATING_MAKEFILES:
                 makefile_paths.append(Path(arg))
 
-            argv[i] = host_to_guest(arg)
+            argv[i] = host_to_guest(Path(arg))
 
         # I hate this, but I don't know how else to detect the .cpp, .c,
         # .S, etc. input file argument(s)
         elif Path(arg).is_file():
-            argv[i] = host_to_guest(arg)
+            argv[i] = host_to_guest(Path(arg))
 
         # And a special case for "-I/path/to/include/dir"
         elif arg.startswith('-I') and arg != '-I-':
-            argv[i] = '-I' + host_to_guest(arg[2:])
+            argv[i] = '-I' + host_to_guest(Path(arg[2:]))
 
     # Time to invoke CodeWarrior!
     cmd = [cw_exe, *argv]
