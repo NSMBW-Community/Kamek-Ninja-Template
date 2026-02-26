@@ -62,4 +62,4 @@ The value being written (`0x80afdcb0`) is a pointer that's only correct for the 
 
 ## Wine
 
-Wine is used to run CodeWarrior on non-Windows systems. This is implemented with the `mwcceppc_wine_wrapper.py` wrapper script, which translates host paths to guest paths in CLI arguments and guest paths to host paths in Makefile outputs ("`.d`" files that define header dependencies).
+Wine is used to run CodeWarrior on non-Windows systems. This is implemented with the `mwcceppc_wrapper.py` wrapper script, which translates host paths to guest paths in CLI arguments and guest paths to host paths in Makefile outputs ("`.d`" files that define header dependencies).
