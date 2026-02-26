@@ -54,8 +54,7 @@ class Config:
     """
     Contains configuration options provided by the user
     """
-    kamek_exe: Path
-    kstdlib_dir: Path
+    kamek_dir: Path
     cw_dir: Path
     project_dir: Path
     build_dir: Path
@@ -73,14 +72,10 @@ class Config:
             allow_abbrev=False,
             **kwargs)
 
-        km_group = parser.add_argument_group('Kamek location')
-        km_group.add_argument('--kamek', type=Path, required=True,
-            help='the Kamek binary ("Kamek.exe" on Windows, "Kamek" on other platforms)')
-        km_group.add_argument('--kstdlib', type=Path, required=True,
-            help='Kamek\'s "k_stdlib" directory')
-
-        cw_group = parser.add_argument_group('CodeWarrior location')
-        cw_group.add_argument('--cw', type=Path, metavar='CODEWARRIOR', required=True,
+        deps_group = parser.add_argument_group('Dependency locations')
+        deps_group.add_argument('--kamek', type=Path, required=True,
+            help='Kamek folder, containing the Kamek binary ("Kamek.exe" or "Kamek") and the k_stdlib directory')
+        deps_group.add_argument('--cw', type=Path, metavar='CODEWARRIOR', required=True,
             help=f'CodeWarrior folder, containing {MWCCEPPC_NAME}, {MWASMEPPC_NAME}, and license.dat, at minimum')
 
         proj_group = parser.add_argument_group('Project location')
@@ -107,8 +102,7 @@ class Config:
         project_dir = args.project_dir or Path.cwd()
 
         self = cls()
-        self.kamek_exe = args.kamek.resolve()
-        self.kstdlib_dir = args.kstdlib.resolve()
+        self.kamek_dir = args.kamek.resolve()
         self.cw_dir = args.cw.resolve()
         self.project_dir = project_dir.resolve()
         self.select_versions = args.select_version or None
@@ -124,13 +118,27 @@ class Config:
 
         return self
 
-    def get_src_dir(self) -> Path:
+    @property
+    def kamek_exe(self) -> Path:
+        if sys.platform == 'win32':
+            return self.kamek_dir / 'Kamek.exe'
+        else:
+            return self.kamek_dir / 'Kamek'
+
+    @property
+    def k_stdlib_dir(self) -> Path:
+        return self.kamek_dir / 'k_stdlib'
+
+    @property
+    def src_dir(self) -> Path:
         return self.project_dir / 'src'
 
-    def get_include_dir(self) -> Path:
+    @property
+    def include_dir(self) -> Path:
         return self.project_dir / 'include'
 
-    def get_address_map_txt(self) -> Path:
+    @property
+    def address_map_txt(self) -> Path:
         fp1 = self.project_dir / 'address-map.txt'
         fp2 = self.project_dir / 'versions.txt'
         if fp2.is_file() and not fp1.is_file():
@@ -139,15 +147,17 @@ class Config:
             return fp1
 
     def have_address_map_txt(self) -> bool:
-        return self.get_address_map_txt().is_file()
+        return self.address_map_txt.is_file()
 
-    def get_externals_txt(self) -> Path:
+    @property
+    def externals_txt(self) -> Path:
         return self.project_dir / 'externals.txt'
 
     def have_externals_txt(self) -> bool:
-        return self.get_externals_txt().is_file()
+        return self.externals_txt.is_file()
 
-    def get_ninja_file(self) -> Path:
+    @property
+    def ninja_file(self) -> Path:
         return self.project_dir / 'build.ninja'
 
     _version_names_list = None
@@ -156,7 +166,7 @@ class Config:
             if self.have_address_map_txt():
                 self._version_names_list = \
                     get_version_names_list_from_address_map(
-                        self.get_address_map_txt())
+                        self.address_map_txt)
             else:
                 self._version_names_list = []
         return list(self._version_names_list)
@@ -296,7 +306,7 @@ class TranslationUnit:
             # We can use just ".o" instead of ".dynamic.o"
             suffix = '.o'
 
-        return config.build_dir / self.source_file.relative_to(config.get_src_dir()).with_suffix(suffix)
+        return config.build_dir / self.source_file.relative_to(config.src_dir).with_suffix(suffix)
 
 
 def make_ninja_file(config: Config) -> str:
@@ -307,8 +317,8 @@ def make_ninja_file(config: Config) -> str:
     # Find all TUs, and read any configs
     tus = []
     for glob in ['**/*.cpp', '**/*.s']:
-        for fp in sorted(config.get_src_dir().glob(glob, case_sensitive=False)):
-            tus.append(TranslationUnit(config.get_src_dir(), fp, config.get_version_names_list()))
+        for fp in sorted(config.src_dir.glob(glob, case_sensitive=False)):
+            tus.append(TranslationUnit(config.src_dir, fp, config.get_version_names_list()))
 
     use_addrmap = config.have_address_map_txt()
     use_externals = config.have_externals_txt()
@@ -326,12 +336,12 @@ def make_ninja_file(config: Config) -> str:
     lines.append(f"cc = {ninja_escape(sys.executable)} {quote}{ninja_escape(cw_wrapper)}{quote} {quote}$mwcceppc{quote}")
     lines.append(f"as = {ninja_escape(sys.executable)} {quote}{ninja_escape(cw_wrapper)}{quote} {quote}$mwasmeppc{quote}")
     lines.append(f'kamek = {ninja_escape(config.kamek_exe)}')
-    lines.append(f'kstdlib = {ninja_escape(config.kstdlib_dir)}')
+    lines.append(f'kstdlib = {ninja_escape(config.k_stdlib_dir)}')
     if use_addrmap:
-        lines.append(f'addrmap = {ninja_escape(config.get_address_map_txt())}')
+        lines.append(f'addrmap = {ninja_escape(config.address_map_txt)}')
     if use_externals:
-        lines.append(f'externals = {ninja_escape(config.get_externals_txt())}')
-    lines.append(f'includedir = {ninja_escape(config.get_include_dir())}')
+        lines.append(f'externals = {ninja_escape(config.externals_txt)}')
+    lines.append(f'includedir = {ninja_escape(config.include_dir)}')
     lines.append(f'')
 
     dumb_constant = ' $\n  '  # backslashes aren't allowed in f-strings
@@ -378,7 +388,7 @@ rule mwasm
                 lines.append(f'build {ninja_escape(o_file)}: mwasm {ninja_escape(tu.source_file)}')
                 lines.append(f'  asflags = $asflags -D{preproc_flag}')
             lines.append(f'  out_filename = {ninja_escape(o_file.relative_to(config.build_dir))}')
-            lines.append(f'  in_filename = {ninja_escape(tu.source_file.relative_to(config.get_src_dir()))}')
+            lines.append(f'  in_filename = {ninja_escape(tu.source_file.relative_to(config.src_dir))}')
             lines.append('')
 
     rule_command = f"{quote}$kamek{quote} $in -quiet -dynamic"
@@ -434,7 +444,7 @@ def main(argv=None) -> None:
     config = Config.from_args(args, extra_args)
 
     txt = make_ninja_file(config)
-    ninja_fp = config.get_ninja_file()
+    ninja_fp = config.ninja_file
     ninja_fp.write_text(txt, encoding='utf-8')
 
 
