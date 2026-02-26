@@ -130,6 +130,14 @@ class Config:
         return self.kamek_dir / 'k_stdlib'
 
     @property
+    def mwcceppc_exe(self) -> Path:
+        return self.cw_dir / MWCCEPPC_NAME
+
+    @property
+    def mwasmeppc_exe(self) -> Path:
+        return self.cw_dir / MWASMEPPC_NAME
+
+    @property
     def src_dir(self) -> Path:
         return self.project_dir / 'src'
 
@@ -330,8 +338,8 @@ def make_ninja_file(config: Config) -> str:
     lines.append(f'builddir = {ninja_escape(config.build_dir)}')
     lines.append(f'outdir = {ninja_escape(config.output_dir)}')
     lines.append(f'')
-    lines.append(f'mwcceppc = {ninja_escape(config.cw_dir / MWCCEPPC_NAME)}')
-    lines.append(f'mwasmeppc = {ninja_escape(config.cw_dir / MWASMEPPC_NAME)}')
+    lines.append(f'mwcceppc = {ninja_escape(config.mwcceppc_exe)}')
+    lines.append(f'mwasmeppc = {ninja_escape(config.mwasmeppc_exe)}')
     cw_wrapper = Path(__file__).parent / CW_WRAPPER_SCRIPT_NAME
     lines.append(f"cc = {ninja_escape(sys.executable)} {quote}{ninja_escape(cw_wrapper)}{quote} {quote}$mwcceppc{quote}")
     lines.append(f"as = {ninja_escape(sys.executable)} {quote}{ninja_escape(cw_wrapper)}{quote} {quote}$mwasmeppc{quote}")
@@ -369,12 +377,12 @@ asflags = $shared_flags
 rule mwcc
   command = $cc $cflags -c -o $out -MDfile $out.d $in
   depfile = $out.d
-  description = {MWCCEPPC_NAME} -o $out_filename $in_filename
+  description = {config.mwcceppc_exe.name} -o $out_filename $in_filename
 
 rule mwasm
   command = $as $asflags -c -o $out -MDfile $out.d $in
   depfile = $out.d
-  description = {MWASMEPPC_NAME} -o $out_filename $in_filename
+  description = {config.mwasmeppc_exe.name} -o $out_filename $in_filename
 """.strip('\n'))
 
     # Add "mwcc" and "mwasm" edges for all (.cpp or .s) -> .o files
