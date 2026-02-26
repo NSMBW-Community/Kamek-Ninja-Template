@@ -19,11 +19,11 @@ Next, add a couple source files to the `src` directory. `goomba.cpp`:
 #include <kamek.h>
 
 // Faster Goomba movement speed
-kmWrite32(0x80ad2870, 0x40000000);  // 0.5 -> 2.0
-kmWrite32(0x80ad2874, 0xc0000000);  // -0.5 -> -2.0
+kmWriteFloat(0x80ad2870, 2.0f);  // 0.5 -> 2.0
+kmWriteFloat(0x80ad2874, -2.0f);  // -0.5 -> -2.0
 
 // Faster Goomba bahp jump speed, animation speed, and other uses
-kmWrite32(0x8042b7c8, 0x41000000);  // 2.0 -> 8.0
+kmWriteFloat(0x8042b7c8, 8.0f);  // 2.0 -> 8.0
 ```
 
 `timer.cpp`:
