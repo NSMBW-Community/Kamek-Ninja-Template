@@ -30,9 +30,6 @@ import sys
 from typing import Any, Dict, List, Optional, Set
 
 
-KAMEK_EXE_NAME_WIN = 'Kamek.exe'
-KAMEK_EXE_NAME_OTHER = 'Kamek'
-K_STDLIB_DIR_NAME = 'k_stdlib'
 CW_WRAPPER_SCRIPT_NAME = 'mwcceppc_wrapper.py'
 
 DEFAULT_BUILD_DIR_NAME = '_build'
@@ -121,22 +118,27 @@ class Config:
 
         return self
 
-    def get_kamek_exe(self) -> Path:
+    @property
+    def kamek_exe(self) -> Path:
         if sys.platform == 'win32':
-            return self.kamek_dir / KAMEK_EXE_NAME_WIN
+            return self.kamek_dir / 'Kamek.exe'
         else:
-            return self.kamek_dir / KAMEK_EXE_NAME_OTHER
+            return self.kamek_dir / 'Kamek'
 
-    def get_k_stdlib_dir(self) -> Path:
-        return self.kamek_dir / K_STDLIB_DIR_NAME
+    @property
+    def k_stdlib_dir(self) -> Path:
+        return self.kamek_dir / 'k_stdlib'
 
-    def get_src_dir(self) -> Path:
+    @property
+    def src_dir(self) -> Path:
         return self.project_dir / 'src'
 
-    def get_include_dir(self) -> Path:
+    @property
+    def include_dir(self) -> Path:
         return self.project_dir / 'include'
 
-    def get_address_map_txt(self) -> Path:
+    @property
+    def address_map_txt(self) -> Path:
         fp1 = self.project_dir / 'address-map.txt'
         fp2 = self.project_dir / 'versions.txt'
         if fp2.is_file() and not fp1.is_file():
@@ -145,15 +147,17 @@ class Config:
             return fp1
 
     def have_address_map_txt(self) -> bool:
-        return self.get_address_map_txt().is_file()
+        return self.address_map_txt.is_file()
 
-    def get_externals_txt(self) -> Path:
+    @property
+    def externals_txt(self) -> Path:
         return self.project_dir / 'externals.txt'
 
     def have_externals_txt(self) -> bool:
-        return self.get_externals_txt().is_file()
+        return self.externals_txt.is_file()
 
-    def get_ninja_file(self) -> Path:
+    @property
+    def ninja_file(self) -> Path:
         return self.project_dir / 'build.ninja'
 
     _version_names_list = None
@@ -162,7 +166,7 @@ class Config:
             if self.have_address_map_txt():
                 self._version_names_list = \
                     get_version_names_list_from_address_map(
-                        self.get_address_map_txt())
+                        self.address_map_txt)
             else:
                 self._version_names_list = []
         return list(self._version_names_list)
@@ -299,7 +303,7 @@ class TranslationUnit:
             # We can use just ".o" instead of ".dynamic.o"
             suffix = '.o'
 
-        return config.build_dir / self.cpp_file.relative_to(config.get_src_dir()).with_suffix(suffix)
+        return config.build_dir / self.cpp_file.relative_to(config.src_dir).with_suffix(suffix)
 
 
 def make_ninja_file(config: Config) -> str:
@@ -309,8 +313,8 @@ def make_ninja_file(config: Config) -> str:
 
     # Find all TUs, and read any configs
     tus = []
-    for fp in sorted(config.get_src_dir().glob('**/*.cpp')):
-        tus.append(TranslationUnit(config.get_src_dir(), fp, config.get_version_names_list()))
+    for fp in sorted(config.src_dir.glob('**/*.cpp')):
+        tus.append(TranslationUnit(config.src_dir, fp, config.get_version_names_list()))
 
     use_addrmap = config.have_address_map_txt()
     use_externals = config.have_externals_txt()
@@ -325,13 +329,13 @@ def make_ninja_file(config: Config) -> str:
     lines.append(f'mwcceppc = {ninja_escape(config.cw_exe)}')
     cc = Path(__file__).parent / CW_WRAPPER_SCRIPT_NAME
     lines.append(f"cc = {ninja_escape(sys.executable)} {quote}{ninja_escape(cc)}{quote} {quote}$mwcceppc{quote}")
-    lines.append(f'kamek = {ninja_escape(config.get_kamek_exe())}')
-    lines.append(f'kstdlib = {ninja_escape(config.get_k_stdlib_dir())}')
+    lines.append(f'kamek = {ninja_escape(config.kamek_exe)}')
+    lines.append(f'kstdlib = {ninja_escape(config.k_stdlib_dir)}')
     if use_addrmap:
-        lines.append(f'addrmap = {ninja_escape(config.get_address_map_txt())}')
+        lines.append(f'addrmap = {ninja_escape(config.address_map_txt)}')
     if use_externals:
-        lines.append(f'externals = {ninja_escape(config.get_externals_txt())}')
-    lines.append(f'includedir = {ninja_escape(config.get_include_dir())}')
+        lines.append(f'externals = {ninja_escape(config.externals_txt)}')
+    lines.append(f'includedir = {ninja_escape(config.include_dir)}')
     lines.append(f'')
 
     dumb_constant = ' $\n  '  # backslashes aren't allowed in f-strings
@@ -364,7 +368,7 @@ rule cw
             lines.append(f'build {ninja_escape(o_file)}: cw {ninja_escape(tu.cpp_file)}')
             lines.append(f'  cflags = $cflags -D{preproc_flag}')
             lines.append(f'  out_filename = {ninja_escape(o_file.relative_to(config.build_dir))}')
-            lines.append(f'  in_filename = {ninja_escape(tu.cpp_file.relative_to(config.get_src_dir()))}')
+            lines.append(f'  in_filename = {ninja_escape(tu.cpp_file.relative_to(config.src_dir))}')
             lines.append('')
 
     rule_command = f"{quote}$kamek{quote} $in -quiet -dynamic"
@@ -377,7 +381,7 @@ rule cw
     lines.append(f"""
 rule kmdynamic
   command = {rule_command}
-  description = {ninja_escape(config.get_kamek_exe().name)} -> $out_filename
+  description = {ninja_escape(config.kamek_exe.name)} -> $out_filename
 """)
 
     # Add "km" edges for all .o -> .bin files
@@ -420,7 +424,7 @@ def main(argv=None) -> None:
     config = Config.from_args(args, extra_args)
 
     txt = make_ninja_file(config)
-    ninja_fp = config.get_ninja_file()
+    ninja_fp = config.ninja_file
     ninja_fp.write_text(txt, encoding='utf-8')
 
 
