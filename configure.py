@@ -30,6 +30,9 @@ import sys
 from typing import Any, Dict, List, Optional, Set
 
 
+KAMEK_EXE_NAME_WIN = 'Kamek.exe'
+KAMEK_EXE_NAME_OTHER = 'Kamek'
+K_STDLIB_DIR_NAME = 'k_stdlib'
 CW_WRAPPER_SCRIPT_NAME = 'mwcceppc_wrapper.py'
 
 DEFAULT_BUILD_DIR_NAME = '_build'
@@ -52,8 +55,7 @@ class Config:
     """
     Contains configuration options provided by the user
     """
-    kamek_exe: Path
-    kstdlib_dir: Path
+    kamek_dir: Path
     cw_exe: Path
     project_dir: Path
     build_dir: Path
@@ -73,9 +75,7 @@ class Config:
 
         km_group = parser.add_argument_group('Kamek location')
         km_group.add_argument('--kamek', type=Path, required=True,
-            help='the Kamek binary ("Kamek.exe" on Windows, "Kamek" on other platforms)')
-        km_group.add_argument('--kstdlib', type=Path, required=True,
-            help='Kamek\'s "k_stdlib" directory')
+            help='Kamek folder, containing the Kamek binary ("Kamek.exe" or "Kamek") and the k_stdlib directory')
 
         cw_group = parser.add_argument_group('CodeWarrior location')
         cw_group.add_argument('--cw', type=Path, metavar='MWCCEPPC', required=True,
@@ -105,8 +105,7 @@ class Config:
         project_dir = args.project_dir or Path.cwd()
 
         self = cls()
-        self.kamek_exe = args.kamek.resolve()
-        self.kstdlib_dir = args.kstdlib.resolve()
+        self.kamek_dir = args.kamek.resolve()
         self.cw_exe = args.cw.resolve()
         self.project_dir = project_dir.resolve()
         self.select_versions = args.select_version or None
@@ -121,6 +120,15 @@ class Config:
                     raise ValueError(f'Unknown --select-version version: "{v}"')
 
         return self
+
+    def get_kamek_exe(self) -> Path:
+        if sys.platform == 'win32':
+            return self.kamek_dir / KAMEK_EXE_NAME_WIN
+        else:
+            return self.kamek_dir / KAMEK_EXE_NAME_OTHER
+
+    def get_k_stdlib_dir(self) -> Path:
+        return self.kamek_dir / K_STDLIB_DIR_NAME
 
     def get_src_dir(self) -> Path:
         return self.project_dir / 'src'
@@ -317,8 +325,8 @@ def make_ninja_file(config: Config) -> str:
     lines.append(f'mwcceppc = {ninja_escape(config.cw_exe)}')
     cc = Path(__file__).parent / CW_WRAPPER_SCRIPT_NAME
     lines.append(f"cc = {ninja_escape(sys.executable)} {quote}{ninja_escape(cc)}{quote} {quote}$mwcceppc{quote}")
-    lines.append(f'kamek = {ninja_escape(config.kamek_exe)}')
-    lines.append(f'kstdlib = {ninja_escape(config.kstdlib_dir)}')
+    lines.append(f'kamek = {ninja_escape(config.get_kamek_exe())}')
+    lines.append(f'kstdlib = {ninja_escape(config.get_k_stdlib_dir())}')
     if use_addrmap:
         lines.append(f'addrmap = {ninja_escape(config.get_address_map_txt())}')
     if use_externals:
@@ -369,7 +377,7 @@ rule cw
     lines.append(f"""
 rule kmdynamic
   command = {rule_command}
-  description = {ninja_escape(config.kamek_exe.name)} -> $out_filename
+  description = {ninja_escape(config.get_kamek_exe().name)} -> $out_filename
 """)
 
     # Add "km" edges for all .o -> .bin files
