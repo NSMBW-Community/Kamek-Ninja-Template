@@ -43,7 +43,7 @@ Now let's try to build it. First, run `configure.py -h` to see what configuratio
 
 ```
 $ python3 configure.py -h
-usage: configure.py [-h] --kamek KAMEK --cw MWCCEPPC [--project-dir PROJECT] [--select-version VERSION] [--build-dir BUILD] [--output-dir OUT]
+usage: configure.py [-h] --kamek KAMEK --cw CODEWARRIOR [--project-dir PROJECT] [--select-version VERSION] [--build-dir BUILD] [--output-dir OUT]
 
 Creates a Ninja file matching the configuration options you specify.
 
@@ -52,7 +52,7 @@ options:
 
 Dependency locations:
   --kamek KAMEK         Kamek folder, containing the Kamek binary ("Kamek.exe" or "Kamek") and the k_stdlib directory
-  --cw MWCCEPPC         CodeWarrior's "mwcceppc.exe"
+  --cw CODEWARRIOR      CodeWarrior folder, containing mwcceppc.exe, mwasmeppc.exe, and license.dat, at minimum
 
 Project location:
   --project-dir PROJECT
@@ -72,7 +72,7 @@ There are two required arguments: `--kamek` and `--cw`. Run `configure.py` with 
 
 ```
 $ # This command is only correct for *my* system -- change the paths below as necessary!
-$ python3 configure.py --kamek ../Kamek --cw ../Kamek/cw/mwcceppc.exe
+$ python3 configure.py --kamek ../Kamek --cw ../Kamek/cw
 $
 ```
 
