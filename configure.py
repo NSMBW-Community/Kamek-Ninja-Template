@@ -70,12 +70,10 @@ class Config:
             allow_abbrev=False,
             **kwargs)
 
-        km_group = parser.add_argument_group('Kamek location')
-        km_group.add_argument('--kamek', type=Path, required=True,
+        deps_group = parser.add_argument_group('Dependency locations')
+        deps_group.add_argument('--kamek', type=Path, required=True,
             help='Kamek folder, containing the Kamek binary ("Kamek.exe" or "Kamek") and the k_stdlib directory')
-
-        cw_group = parser.add_argument_group('CodeWarrior location')
-        cw_group.add_argument('--cw', type=Path, metavar='MWCCEPPC', required=True,
+        deps_group.add_argument('--cw', type=Path, metavar='MWCCEPPC', required=True,
             help='CodeWarrior\'s "mwcceppc.exe"')
 
         proj_group = parser.add_argument_group('Project location')
