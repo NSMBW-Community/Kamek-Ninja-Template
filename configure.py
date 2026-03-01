@@ -26,12 +26,14 @@ import argparse
 import json
 from pathlib import Path
 import re
+import shutil
 import sys
 from typing import Any, Dict, List, Optional, Set
 
 
-MWCCEPPC_NAME = 'mwcceppc.exe'
-MWASMEPPC_NAME = 'mwasmeppc.exe'
+KAMEK_EXE_NAME = 'Kamek.exe' if sys.platform == 'win32' else 'Kamek'
+MWCCEPPC_EXE_NAME = 'mwcceppc.exe'
+MWASMEPPC_EXE_NAME = 'mwasmeppc.exe'
 CW_WRAPPER_SCRIPT_NAME = 'cw_wrapper.py'
 
 DEFAULT_BUILD_DIR_NAME = '_build'
@@ -73,13 +75,18 @@ class Config:
             allow_abbrev=False,
             **kwargs)
 
+        if sys.platform == 'win32':
+            kamek_binary_desc = KAMEK_EXE_NAME
+        else:
+            kamek_binary_desc = 'the Kamek binary ("Kamek")'
+
         deps_group = parser.add_argument_group('Dependency locations')
-        deps_group.add_argument('--kamek', type=Path, required=True,
-            help='Kamek folder, containing the Kamek binary ("Kamek.exe" or "Kamek") and the k_stdlib directory')
+        deps_group.add_argument('--kamek', type=Path,
+            help=f'Kamek folder, containing {kamek_binary_desc} and the k_stdlib directory (default: {KAMEK_EXE_NAME} is searched for on PATH)')
         deps_group.add_argument('--kstdlib', type=Path,
             help='Kamek\'s k_stdlib directory (default: <kamek dir>/k_stdlib)')
-        deps_group.add_argument('--cw', type=Path, metavar='CODEWARRIOR', required=True,
-            help=f'CodeWarrior folder, containing {MWCCEPPC_NAME}, {MWASMEPPC_NAME}, and license.dat, at minimum')
+        deps_group.add_argument('--cw', type=Path, metavar='CODEWARRIOR',
+            help=f'CodeWarrior folder, containing {MWCCEPPC_EXE_NAME}, {MWASMEPPC_EXE_NAME}, and license.dat, at minimum (default: {MWCCEPPC_EXE_NAME} is searched for on PATH)')
 
         proj_group = parser.add_argument_group('Project location')
         proj_group.add_argument('--project-dir', type=Path, metavar='PROJECT',
@@ -97,6 +104,20 @@ class Config:
 
         return parser
 
+    @staticmethod
+    def find_on_path(exe_name: str, arg_name: str) -> Path:
+        """
+        Search PATH for an executable. If not found, raise ValueError,
+        with an error message suggesting that the user can also use the
+        arg_name argument to specify a relevant path manually
+        """
+        result = shutil.which(exe_name)
+
+        if result is None:
+            raise ValueError(f'Unable to find {exe_name} (no {arg_name} argument provided, and not found on PATH)')
+        else:
+            return Path(result)
+
     @classmethod
     def from_args(cls, args: argparse.Namespace, extra_args: List[str]) -> None:
         """
@@ -105,12 +126,22 @@ class Config:
         project_dir = args.project_dir or Path.cwd()
 
         self = cls()
-        self.kamek_dir = args.kamek.resolve()
-        if args.kstdlib is None:
-            self.k_stdlib_dir = self.kamek_dir / 'k_stdlib'
+
+        if args.kamek is not None:
+            self.kamek_dir = args.kamek.resolve()
         else:
+            self.kamek_dir = cls.find_on_path(KAMEK_EXE_NAME, '--kamek').parent
+
+        if args.kstdlib is not None:
             self.k_stdlib_dir = args.kstdlib.resolve()
-        self.cw_dir = args.cw.resolve()
+        else:
+            self.k_stdlib_dir = self.kamek_dir / 'k_stdlib'
+
+        if args.cw is not None:
+            self.cw_dir = args.cw.resolve()
+        else:
+            self.cw_dir = cls.find_on_path(MWCCEPPC_EXE_NAME, '--cw').parent
+
         self.project_dir = project_dir.resolve()
         self.select_versions = args.select_version or None
         self.build_dir = (args.build_dir or project_dir / DEFAULT_BUILD_DIR_NAME).resolve()
@@ -127,18 +158,15 @@ class Config:
 
     @property
     def kamek_exe(self) -> Path:
-        if sys.platform == 'win32':
-            return self.kamek_dir / 'Kamek.exe'
-        else:
-            return self.kamek_dir / 'Kamek'
+        return self.kamek_dir / KAMEK_EXE_NAME
 
     @property
     def mwcceppc_exe(self) -> Path:
-        return self.cw_dir / MWCCEPPC_NAME
+        return self.cw_dir / MWCCEPPC_EXE_NAME
 
     @property
     def mwasmeppc_exe(self) -> Path:
-        return self.cw_dir / MWASMEPPC_NAME
+        return self.cw_dir / MWASMEPPC_EXE_NAME
 
     @property
     def src_dir(self) -> Path:

@@ -43,7 +43,7 @@ Now let's try to build it. First, run `configure.py -h` to see what configuratio
 
 ```
 $ python3 configure.py -h
-usage: configure.py [-h] --kamek KAMEK [--kstdlib KSTDLIB] --cw CODEWARRIOR [--project-dir PROJECT] [--select-version VERSION] [--build-dir BUILD] [--output-dir OUT]
+usage: configure.py [-h] [--kamek KAMEK] [--kstdlib KSTDLIB] [--cw CODEWARRIOR] [--project-dir PROJECT] [--select-version VERSION] [--build-dir BUILD] [--output-dir OUT]
 
 Creates a Ninja file matching the configuration options you specify.
 
@@ -51,9 +51,9 @@ options:
   -h, --help            show this help message and exit
 
 Dependency locations:
-  --kamek KAMEK         Kamek folder, containing the Kamek binary ("Kamek.exe" or "Kamek") and the k_stdlib directory
+  --kamek KAMEK         Kamek folder, containing the Kamek binary ("Kamek") and the k_stdlib directory (default: Kamek is searched for on PATH)
   --kstdlib KSTDLIB     Kamek's k_stdlib directory (default: <kamek dir>/k_stdlib)
-  --cw CODEWARRIOR      CodeWarrior folder, containing mwcceppc.exe, mwasmeppc.exe, and license.dat, at minimum
+  --cw CODEWARRIOR      CodeWarrior folder, containing mwcceppc.exe, mwasmeppc.exe, and license.dat, at minimum (default: mwcceppc.exe is searched for on PATH)
 
 Project location:
   --project-dir PROJECT
@@ -69,7 +69,7 @@ Any additional arguments will be passed directly to CodeWarrior.
 $
 ```
 
-There are two required arguments: `--kamek` and `--cw`. Run `configure.py` with those set to correct values:
+The paths to Kamek and CodeWarrior are required. You can either make them available on PATH, or run `configure.py` with those arguments set to correct values:
 
 ```
 $ # This command is only correct for *my* system -- change the paths below as necessary!
