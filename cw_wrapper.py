@@ -35,7 +35,7 @@ ARGS_INDICATING_MAKEFILES = {'-Mfile', '-MMfile', '-MDfile', '-MMDfile'}
 ARGS_INDICATING_PATHS = {'-i', '-include', '-ir', *ARGS_INDICATING_MAKEFILES, '-o', '-precompile', '-prefix'}
 
 
-def is_windows():
+def is_windows() -> bool:
     return sys.platform == 'win32'
 
 
@@ -131,7 +131,7 @@ def fix_makefile(text: str, filename: str) -> str:
     return '\n'.join(new_lines)
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> None:
     if argv is None:
         argv = sys.argv
 

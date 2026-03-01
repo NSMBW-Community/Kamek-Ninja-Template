@@ -28,7 +28,7 @@ from pathlib import Path
 import re
 import shutil
 import sys
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Iterator
 
 
 KAMEK_EXE_NAME = 'Kamek.exe' if sys.platform == 'win32' else 'Kamek'
@@ -62,8 +62,8 @@ class Config:
     project_dir: Path
     build_dir: Path
     output_dir: Path
-    select_versions: Optional[List[str]]
-    extra_cflags: List[str]
+    select_versions: list[str] | None
+    extra_cflags: list[str]
 
     @staticmethod
     def create_arg_parser(*args, **kwargs) -> None:
@@ -119,7 +119,7 @@ class Config:
             return Path(result)
 
     @classmethod
-    def from_args(cls, args: argparse.Namespace, extra_args: List[str]) -> None:
+    def from_args(cls, args: argparse.Namespace, extra_args: list[str]) -> None:
         """
         Construct a Config instance from the CLI arguments
         """
@@ -200,7 +200,7 @@ class Config:
         return self.project_dir / 'build.ninja'
 
     _version_names_list = None
-    def get_version_names_list(self) -> List[str]:
+    def get_version_names_list(self) -> list[str]:
         if self._version_names_list is None:
             if self.have_address_map_txt():
                 self._version_names_list = \
@@ -211,7 +211,7 @@ class Config:
         return list(self._version_names_list)
 
 
-def get_version_names_list_from_address_map(path: Path) -> List[str]:
+def get_version_names_list_from_address_map(path: Path) -> list[str]:
     """
     Read an address map file and extract the names of all game versions
     it defines, in order.
@@ -242,9 +242,9 @@ class TranslationUnit:
 
     use_static_version_builds: bool
     # {"compile_for_this_version": {"for", "these", "build", "versions"}, ...}
-    static_version_builds: Dict[str, Set[str]]
+    static_version_builds: dict[str, set[str]]
 
-    def __init__(self, src_root_dir: Path, source_file: Path, game_versions: List[str]) -> 'TranslationUnit':
+    def __init__(self, src_root_dir: Path, source_file: Path, game_versions: list[str]) -> 'TranslationUnit':
         """
         Create a TranslationUnit from a .cpp file path, including
         checking for the existence of a corresponding .json file
@@ -269,7 +269,7 @@ class TranslationUnit:
     def is_cpp(self) -> bool:
         return self.source_file.suffix.lower() == '.cpp'
 
-    def read_config(self, path: Path, game_versions: List[str]) -> None:
+    def read_config(self, path: Path, game_versions: list[str]) -> None:
         """
         Read additional config data from an optional .json file
         """
@@ -302,7 +302,7 @@ class TranslationUnit:
                         raise ValueError(f'{path.name}: "{member}" is present in multiple build groups')
                 already_seen |= group
 
-    def iter_builds(self, config: Config):
+    def iter_builds(self, config: Config) -> Iterator[tuple[str, Path]]:
         """
         Iterator over the .o files that need to be built for this TU.
         Yields (preprocessor flag, .o filepath) pairs.
@@ -328,7 +328,7 @@ class TranslationUnit:
         else:
             yield GAME_VERSION_PREPROC_FLAG_DYNAMIC, self.o_file_for_version(DYNAMIC_GAME_VERSION_NAME, config)
 
-    def o_file_for_version(self, version: str, config: Config) -> Optional[str]:
+    def o_file_for_version(self, version: str, config: Config) -> str | None:
         """
         Return the .o file path that should be used for the specified
         game version, or None if it shouldn't be built at all for this
@@ -470,7 +470,7 @@ rule kmdynamic
     return '\n'.join(lines)
 
 
-def main(argv=None) -> None:
+def main(argv: list[str] | None = None) -> None:
     """
     Main function
     """
