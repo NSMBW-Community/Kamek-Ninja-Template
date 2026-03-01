@@ -84,7 +84,7 @@ class Config:
         deps_group.add_argument('--kamek', type=Path,
             help=f'Kamek folder, containing {kamek_binary_desc} and the k_stdlib directory (default: {KAMEK_EXE_NAME} is searched for on PATH)')
         deps_group.add_argument('--kstdlib', type=Path,
-            help='Kamek\'s k_stdlib directory (default: <kamek dir>/k_stdlib)')
+            help="Kamek's k_stdlib directory (default: <kamek dir>/k_stdlib)")
         deps_group.add_argument('--cw', type=Path, metavar='CODEWARRIOR',
             help=f'CodeWarrior folder, containing {MWCCEPPC_EXE_NAME}, {MWASMEPPC_EXE_NAME}, and license.dat, at minimum (default: {MWCCEPPC_EXE_NAME} is searched for on PATH)')
 
