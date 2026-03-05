@@ -32,6 +32,7 @@ from typing import Any, Iterator
 
 
 KAMEK_EXE_NAME = 'Kamek.exe' if sys.platform == 'win32' else 'Kamek'
+KAMEK_H_NAME = 'kamek.h'
 MWCCEPPC_EXE_NAME = 'mwcceppc.exe'
 MWASMEPPC_EXE_NAME = 'mwasmeppc.exe'
 CW_WRAPPER_SCRIPT_NAME = 'cw_wrapper.py'
@@ -141,6 +142,13 @@ class Config:
             self.cw_dir = args.cw.resolve()
         else:
             self.cw_dir = cls.find_on_path(MWCCEPPC_EXE_NAME, '--cw').parent
+
+        if not (self.kamek_dir / KAMEK_EXE_NAME).is_file():
+            raise ValueError(f'Kamek directory seems incorrect (no {KAMEK_EXE_NAME} found)')
+        if not (self.k_stdlib_dir / KAMEK_H_NAME).is_file():
+            raise ValueError(f'Kamek k_stdlib directory seems incorrect (no {KAMEK_H_NAME} found)')
+        if not (self.cw_dir / MWCCEPPC_EXE_NAME).is_file():
+            raise ValueError(f'CodeWarrior directory seems incorrect (no {MWCCEPPC_EXE_NAME} found)')
 
         self.project_dir = project_dir.resolve()
         self.select_versions = args.select_version or None
