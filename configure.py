@@ -39,6 +39,7 @@ CW_WRAPPER_SCRIPT_NAME = 'cw_wrapper.py'
 
 DEFAULT_BUILD_DIR_NAME = '_build'
 DEFAULT_OUTPUT_DIR_NAME = 'bin'
+DEFAULT_OUTPUT_MAPS_DIR_NAME = '_maps'
 
 DYNAMIC_GAME_VERSION_NAME = 'DYNAMIC'
 GAME_VERSION_PREPROC_FLAG_DYNAMIC = 'IS_GAME_VERSION_DYNAMIC'
@@ -63,6 +64,7 @@ class Config:
     project_dir: Path
     build_dir: Path
     output_dir: Path
+    output_maps_dir: Path | None
     select_versions: list[str] | None
     extra_cflags: list[str]
 
@@ -102,6 +104,10 @@ class Config:
         out_group.add_argument('--output-dir', type=Path, metavar='OUT',
             help=f'output directory to put Kamekfiles in'
                  f' (default: <project dir>/{DEFAULT_OUTPUT_DIR_NAME})')
+        out_group.add_argument('--output-maps-dir', type=Path, metavar='MAPS',
+            help=f'directory to put text files with symbol names and offsets (Kamek\'s "-output-map" argument)'
+                 f' (to disable generating maps, set this to the empty string)'
+                 f' (default: <project dir>/{DEFAULT_OUTPUT_MAPS_DIR_NAME})')
 
         return parser
 
@@ -155,6 +161,13 @@ class Config:
         self.build_dir = (args.build_dir or project_dir / DEFAULT_BUILD_DIR_NAME).resolve()
         self.output_dir = (args.output_dir or project_dir / DEFAULT_OUTPUT_DIR_NAME).resolve()
         self.extra_cflags = extra_args
+
+        if args.output_maps_dir is None:
+            self.output_maps_dir = (project_dir / DEFAULT_OUTPUT_MAPS_DIR_NAME).resolve()
+        elif args.output_maps_dir:
+            self.output_maps_dir = args.output_maps_dir.resolve()
+        else:
+            self.output_maps_dir = None
 
         if self.select_versions is not None:
             # Quick sanity check
@@ -217,6 +230,9 @@ class Config:
             else:
                 self._version_names_list = []
         return list(self._version_names_list)
+
+    def have_output_maps_dir(self) -> bool:
+        return self.output_maps_dir is not None
 
 
 def get_version_names_list_from_address_map(path: Path) -> list[str]:
@@ -369,8 +385,14 @@ def make_ninja_file(config: Config) -> str:
 
     use_addrmap = config.have_address_map_txt()
     use_externals = config.have_externals_txt()
+    use_output_maps = config.have_output_maps_dir()
 
     quote = '"' if sys.platform == 'win32' else "'"
+
+    if sys.platform == 'win32':
+        mkdir_command = 'cmd /c mkdir $out'
+    else:
+        mkdir_command = 'mkdir -p $out'
 
     lines = []
     lines.append(f'# NOTE: "builddir" has special significance to Ninja (see the manual)')
@@ -388,6 +410,8 @@ def make_ninja_file(config: Config) -> str:
         lines.append(f'addrmap = {ninja_escape(config.address_map_txt)}')
     if use_externals:
         lines.append(f'externals = {ninja_escape(config.externals_txt)}')
+    if use_output_maps:
+        lines.append(f'outmapsdir = {ninja_escape(config.output_maps_dir)}')
     lines.append(f'includedir = {ninja_escape(config.include_dir)}')
     lines.append(f'')
 
@@ -412,6 +436,10 @@ cflags = $
   -RTTI off{(dumb_constant + ' '.join(config.extra_cflags)) if config.extra_cflags else ''}
 
 asflags = $shared_flags
+
+rule mkdir
+  command = {mkdir_command}
+  description = mkdir -p $out
 
 rule mwcc
   command = $cc $cflags -c -o $out -MDfile $out.d $in
@@ -443,9 +471,13 @@ rule mwasm
         rule_command += f" {quote}-versions=$addrmap{quote}"
     if use_externals:
         rule_command += f" {quote}-externals=$externals{quote}"
+    if use_output_maps:
+        rule_command += f" {quote}-output-map=$outmapsdir/$$KV$$.txt{quote}"
     rule_command += " -output-kamek=$out -select-version=$selectversion"
 
     lines.append(f"""
+build $outmapsdir: mkdir
+
 rule kmdynamic
   command = {rule_command}
   description = {ninja_escape(config.kamek_exe.name)} -> $out_filename
@@ -468,6 +500,8 @@ rule kmdynamic
             implicit_deps.append('$addrmap')
         if use_externals:
             implicit_deps.append('$externals')
+        if use_output_maps:
+            implicit_deps.append('$outmapsdir')
         if implicit_deps:
             lines[-1] += f' | {" ".join(implicit_deps)}'
 

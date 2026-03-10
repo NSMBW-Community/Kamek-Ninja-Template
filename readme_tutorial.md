@@ -43,7 +43,7 @@ Now let's try to build it. First, run `configure.py -h` to see what configuratio
 
 ```
 $ python3 configure.py -h
-usage: configure.py [-h] [--kamek KAMEK] [--kstdlib KSTDLIB] [--cw CODEWARRIOR] [--project-dir PROJECT] [--select-version VERSION] [--build-dir BUILD] [--output-dir OUT]
+usage: configure.py [-h] [--kamek KAMEK] [--kstdlib KSTDLIB] [--cw CODEWARRIOR] [--project-dir PROJECT] [--select-version VERSION] [--build-dir BUILD] [--output-dir OUT] [--output-maps-dir MAPS]
 
 Creates a Ninja file matching the configuration options you specify.
 
@@ -64,6 +64,8 @@ Output options:
                         build only for the indicated game version, instead of all of them (can be specified multiple times)
   --build-dir BUILD     directory to put object files and Ninja's bookkeeping files ("$builddir") (default: <project dir>/_build)
   --output-dir OUT      output directory to put Kamekfiles in (default: <project dir>/bin)
+  --output-maps-dir MAPS
+                        directory to put text files with symbol names and offsets (Kamek's "-output-map" argument) (to disable generating maps, set this to the empty string) (default: <project dir>/_maps)
 
 Any additional arguments will be passed directly to CodeWarrior.
 $
