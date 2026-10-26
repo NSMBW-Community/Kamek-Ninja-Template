@@ -22,7 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from pathlib import Path
+from pathlib import PureWindowsPath, Path
 import sys
 import subprocess
 from typing import Any
@@ -54,32 +54,46 @@ def makefile_unescape(thing: str) -> str:
     return str(thing).replace('\\ ', ' ').replace('\\\\', '\\')
 
 
-def host_to_guest(path: Path) -> str:
+def host_to_guest(paths: list[Path]) -> list[PureWindowsPath]:
     """
-    Convert a host path to a string CodeWarrior will be happy with
-    """
-    if is_windows():
-        return str(path.resolve())
-    else:
-        return subprocess.check_output(
-            ['winepath', '-w', str(path)],
-            encoding='utf-8',
-            stderr=subprocess.DEVNULL,
-        ).rstrip('\n')
-
-
-def guest_to_host(path_str: str) -> Path:
-    """
-    Convert a path string from CodeWarrior to a path for the host system
+    Convert host paths to Windows paths CodeWarrior will be happy with
     """
     if is_windows():
-        return Path(path_str)
+        return [PureWindowsPath(path.resolve()) for path in paths]
     else:
-        return Path(subprocess.check_output(
-            ['winepath', '-u', path_str],
-            encoding='utf-8',
-            stderr=subprocess.DEVNULL,
-        ).rstrip('\n'))
+        return [
+            PureWindowsPath(path)
+            for path in subprocess.check_output(
+                [
+                    'winepath',
+                    '-w',
+                    *(str(path) for path in paths),
+                ],
+                encoding='utf-8',
+                stderr=subprocess.DEVNULL,
+            ).splitlines()
+        ]
+
+
+def guest_to_host(path_strs: list[PureWindowsPath]) -> list[Path]:
+    """
+    Convert Windows paths from CodeWarrior to paths for the host system
+    """
+    if is_windows():
+        return [Path(path_str) for path_str in path_strs]
+    else:
+        return [
+            Path(path)
+            for path in subprocess.check_output(
+                [
+                    'winepath',
+                    '-u',
+                    *(str(path_str) for path_str in path_strs),
+                ],
+                encoding='utf-8',
+                stderr=subprocess.DEVNULL,
+            ).splitlines()
+        ]
 
 
 def fix_makefile(text: str, filename: str) -> str:
@@ -87,12 +101,12 @@ def fix_makefile(text: str, filename: str) -> str:
     Convert all Windows paths to Unix paths within a
     CodeWarrior-generated Makefile
     """
-    new_lines = []
+    new_text = []
 
     for i, line in enumerate(text.splitlines()):
         if not line:
             # Blank line
-            new_lines.append('')
+            new_text.append('\n')
 
         elif line.count(': ') == 1:
             split_point = line.index(': ')
@@ -102,14 +116,13 @@ def fix_makefile(text: str, filename: str) -> str:
                 line = line[:-2]
             line = line.rstrip()
 
-            o_file_guest = makefile_unescape(line[:split_point])
-            cpp_file_guest = makefile_unescape(line[split_point + 2 :])
+            o_file_guest = PureWindowsPath(makefile_unescape(line[:split_point]))
+            cpp_file_guest = PureWindowsPath(makefile_unescape(line[split_point + 2 :]))
 
-            o_file_host = guest_to_host(o_file_guest).resolve()
-            cpp_file_host = guest_to_host(cpp_file_guest).resolve()
-
-            SPACE_BACKSLASH = ' \\'
-            new_lines.append(f'{makefile_escape(o_file_host)}: {makefile_escape(cpp_file_host)}{SPACE_BACKSLASH if ends_with_slash else ""}')
+            new_text.append(o_file_guest)
+            new_text.append(': ')
+            new_text.append(cpp_file_guest)
+            new_text.append(' \\\n' if ends_with_slash else '\n')
 
         elif line.startswith('\t'):
             # Continuation of a rule ("\tsome_header.h \\")
@@ -120,20 +133,30 @@ def fix_makefile(text: str, filename: str) -> str:
                 line = line[:-2]
             line = line.rstrip()
 
-            h_file_guest = makefile_unescape(line)
-            h_file_host = guest_to_host(h_file_guest).resolve()
-            SPACE_BACKSLASH = ' \\'
-            new_lines.append(f'\t{makefile_escape(h_file_host)}{SPACE_BACKSLASH if ends_with_slash else ""}')
+            h_file_guest = PureWindowsPath(makefile_unescape(line))
+
+            new_text.append('\t')
+            new_text.append(h_file_guest)
+            new_text.append(' \\\n' if ends_with_slash else '\n')
 
         else:
             raise ValueError(f"Couldn't parse line {i+1} of {filename}: {line!r}")
 
-    return '\n'.join(new_lines)
+    paths_converted = guest_to_host([p for p in new_text if isinstance(p, PureWindowsPath)])
+
+    j = 0
+    for i, part in enumerate(new_text):
+        if isinstance(part, PureWindowsPath):
+            new_text[i] = makefile_escape(str(paths_converted[j].resolve()))
+            j += 1
+
+    return ''.join(new_text)
 
 
 def main(argv: list[str] | None = None) -> None:
     if argv is None:
         argv = sys.argv
+    argv = list(argv)
 
     if len(argv) < 2:
         print(f'usage: {argv[0]} /path/to/(mwcceppc.exe or mwasmeppc.exe) [arguments to CodeWarrior, using host filepaths]...')
@@ -148,6 +171,7 @@ def main(argv: list[str] | None = None) -> None:
     # Next, we scan for any arguments we recognize, and translate any
     # paths
     makefile_paths = []
+    to_convert = []
     for i, arg in enumerate(argv):
         prev_arg = argv[i - 1] if i > 0 else None
 
@@ -156,16 +180,20 @@ def main(argv: list[str] | None = None) -> None:
             if prev_arg in ARGS_INDICATING_MAKEFILES:
                 makefile_paths.append(Path(arg))
 
-            argv[i] = host_to_guest(Path(arg))
+            to_convert.append((i, False, Path(arg)))
 
         # I hate this, but I don't know how else to detect the .cpp, .c,
         # .S, etc. input file argument(s)
         elif Path(arg).is_file():
-            argv[i] = host_to_guest(Path(arg))
+            to_convert.append((i, False, Path(arg)))
 
         # And a special case for "-I/path/to/include/dir"
         elif arg.startswith('-I') and arg != '-I-':
-            argv[i] = '-I' + host_to_guest(Path(arg[2:]))
+            to_convert.append((i, True, Path(arg[2:])))
+
+    converted_paths = host_to_guest([p for i, b, p in to_convert])
+    for (i, is_include, old_path), new_path in zip(to_convert, converted_paths):
+        argv[i] = f'-I{new_path}' if is_include else str(new_path)
 
     # Time to invoke CodeWarrior!
     cmd = [cw_exe, *argv]
